@@ -3,20 +3,53 @@ import sys
 op = ['+','-','*','/']
 white_space = ' '
 lexeme = ''
-lexeme2 = ''
 number1 = ''
-number2 = ''
-posop = ''
+aspa ="'"
 numlist = []
+opseq=[]
 for param  in sys.argv[1:] :
     for i, char in enumerate(param):
-        if char != white_space:     
+        if char != white_space: 
             lexeme += char
-        if (i+1 < len(param)):
-            if param[i+1] != white_space or param[i+1] in op or lexeme in op: # if next char == ' ':
-                if char in op :
-                    number1 = int(lexeme[:-1])
-                    lexeme =''
-                    numlist.append(number1)
-                    print(number1)
-    print(number1)
+            if char in op or char == aspa:
+                if char == aspa:
+                    pass
+                else:
+                    opseq.append(char)
+                number1 = lexeme[:-1]
+                lexeme =''
+                numlist.append(number1)
+    
+numlist = numlist[1:]
+numlist.reverse()
+opseq.reverse()
+while len(opseq)> 0:
+    #print(len(numlist))
+    operand = opseq.pop()
+    if operand == '+':
+        num1 = numlist.pop()
+        num2 = numlist.pop()
+        #print(num1)
+        #print(num2)
+        result = int(num1)+int(num2)
+        #print(result)
+        numlist.append(result)
+    elif operand == '-':
+        num1 = numlist.pop()
+        num2 = numlist.pop()
+        #print(num1)
+        #print(num2)
+        result = int(num1)-int(num2)
+        #print(result)
+        numlist.append(result)
+    elif operand == '/':
+        result = int(numlist.pop())/int(numlist.pop())
+        #print(result)
+        numlist.append(result)
+    elif operand == '*':
+        result = int(numlist.pop())*int(numlist.pop())
+        #print(result)
+        numlist.append(result)
+print(result)
+
+ 
