@@ -20,6 +20,12 @@ class Tokenizer:
             elif self.origin[self.position] == '-':
                 self.actual = Token('MINUS','-')
                 self.position += 1
+            elif self.origin[self.position] == '*':
+                self.actual = Token('MULT','*')
+                self.position += 1
+            elif self.origin[self.position] == '/':
+                self.actual = Token('DIV','/')
+                self.position += 1
             elif self.origin[self.position].isdigit():
                 num = ""
                 while (self.position < len(self.origin)) and (self.origin[self.position].isdigit()):
@@ -32,35 +38,56 @@ class Parser:
     def run(code):
         Parser.tokens = Tokenizer(code)
         print(Parser.parseExpression())
-        
 
     @staticmethod
-    def parseExpression():
+    def term():
         result = ""
         if Parser.tokens.actual.type == 'INT':
             result = Parser.tokens.actual.value
             Parser.tokens.selectNext()
-            while Parser.tokens.actual.type in ['PLUS','MINUS']:
+            while Parser.tokens.actual.type in ['MULT','DIV']:
 
-                if Parser.tokens.actual.type == "PLUS":
+                if Parser.tokens.actual.type == "MULT":
                     Parser.tokens.selectNext()
                     if Parser.tokens.actual.type == 'INT':
-                        result += Parser.tokens.actual.value
+                        result *= Parser.tokens.actual.value
                         Parser.tokens.selectNext()
                     else:
                         print('erro')
                     
-                elif Parser.tokens.actual.type == "MINUS":
+                elif Parser.tokens.actual.type == "DIV":
                     Parser.tokens.selectNext()
                     if Parser.tokens.actual.type == 'INT':
-                        result -= Parser.tokens.actual.value
+                        result /= Parser.tokens.actual.value
                         Parser.tokens.selectNext()
                     else:
-                        print('erro') 
+                        print('erro')
             return result
         else:
             print('erro') 
 
+        
+
+    @staticmethod
+    def parseExpression():
+        result = Parser.term()
+        while Parser.tokens.actual.type in ['PLUS','MINUS']:
+            if Parser.tokens.actual.type == "PLUS":
+                Parser.tokens.selectNext()
+                if Parser.tokens.actual.type == 'INT':
+                        result += Parser.tokens.actual.value
+                        Parser.tokens.selectNext()
+                else:
+                    print('erro')
+                    
+            elif Parser.tokens.actual.type == "MINUS":
+                Parser.tokens.selectNext()
+                if Parser.tokens.actual.type == 'INT':
+                        result -= Parser.tokens.actual.value
+                        Parser.tokens.selectNext()
+                else:
+                    print('erro')
+        return result
         
 
 
