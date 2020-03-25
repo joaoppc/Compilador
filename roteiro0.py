@@ -32,10 +32,28 @@ class Tokenizer:
                     num += self.origin[self.position]
                     self.position += 1
                 self.actual = Token('INT',int(num))
+
+class PrePro():
+    @staticmethod
+    def filter(code):
+        p = 0
+        comment_start = 0
+        comment_end = 0
+        while p<len(code)-1:
+            if code[p] == '/' and code[p+1] == '*':
+                comment_start = p
+                p
+            if code[p] == '*' and code[p+1] == '/':
+                comment_end == p+1
+            p+=1
+        code = code[:comment_start]+code[comment_end:]
+        return code
+        
 class Parser:
     tokens = None
     @staticmethod
     def run(code):
+        code = PrePro.filter(code)
         Parser.tokens = Tokenizer(code)
         print(Parser.parseExpression())
 
@@ -93,5 +111,6 @@ class Parser:
 
 if __name__ == '__main__':
     code = sys.argv[1]
+
     Parser.run(code)
  
