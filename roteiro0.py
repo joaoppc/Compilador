@@ -93,7 +93,7 @@ class Parser:
             if Parser.tokens.actual.type == "PLUS":
                 Parser.tokens.selectNext()
                 if Parser.tokens.actual.type == 'INT':
-                        result += Parser.tokens.actual.value
+                        result += Parser.term()
                         Parser.tokens.selectNext()
                 else:
                     print('erro')
@@ -101,7 +101,7 @@ class Parser:
             elif Parser.tokens.actual.type == "MINUS":
                 Parser.tokens.selectNext()
                 if Parser.tokens.actual.type == 'INT':
-                        result -= Parser.tokens.actual.value
+                        result -= Parser.term()
                         Parser.tokens.selectNext()
                 else:
                     print('erro')
