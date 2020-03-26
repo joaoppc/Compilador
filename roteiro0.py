@@ -26,6 +26,12 @@ class Tokenizer:
             elif self.origin[self.position] == '/':
                 self.actual = Token('DIV','/')
                 self.position += 1
+            elif self.origin[self.position] == '(':
+                self.actual = Token('OPEN','(')
+                self.position += 1
+            elif self.origin[self.position] == ')':
+                self.actual = Token('CLOSE',')')
+                self.position += 1
             elif self.origin[self.position].isdigit():
                 num = ""
                 while (self.position < len(self.origin)) and (self.origin[self.position].isdigit()):
@@ -58,31 +64,49 @@ class Parser:
         print(Parser.parseExpression())
 
     @staticmethod
-    def term():
-        result = ""
+    def factor():
+        result = ''
         if Parser.tokens.actual.type == 'INT':
             result = Parser.tokens.actual.value
             Parser.tokens.selectNext()
-            while Parser.tokens.actual.type in ['MULT','DIV']:
-
-                if Parser.tokens.actual.type == "MULT":
-                    Parser.tokens.selectNext()
-                    if Parser.tokens.actual.type == 'INT':
-                        result *= Parser.tokens.actual.value
-                        Parser.tokens.selectNext()
-                    else:
-                        print('erro')
-                    
-                elif Parser.tokens.actual.type == "DIV":
-                    Parser.tokens.selectNext()
-                    if Parser.tokens.actual.type == 'INT':
-                        result /= Parser.tokens.actual.value
-                        Parser.tokens.selectNext()
-                    else:
-                        print('erro')
             return result
-        else:
-            print('erro') 
+        if Parser.tokens.actual.type == 'PLUS':
+            Parser.tokens.selectNext()
+            result = Parser.factor()
+            return result
+        if Parser.tokens.actual.type == 'MINUS':
+            Parser.tokens.selectNext()
+            result = -Parser.factor()
+            return result
+        if Parser.tokens.actual.type == 'OPEN':
+            Parser.tokens.selectNext()
+            result = Parser.parseExpression()
+            
+            return result
+         
+
+    @staticmethod
+    def term():
+        result = Parser.factor()    
+        while Parser.tokens.actual.type in ['MULT','DIV']:
+
+            if Parser.tokens.actual.type == "MULT":
+                Parser.tokens.selectNext()
+                if Parser.tokens.actual.type == 'INT':
+                    result *= Parser.factor()
+                    Parser.tokens.selectNext()
+                else:
+                    print('erro')
+                
+            elif Parser.tokens.actual.type == "DIV":
+                Parser.tokens.selectNext()
+                if Parser.tokens.actual.type == 'INT':
+                    result /= Parser.factor()
+                    Parser.tokens.selectNext()
+                else:
+                    print('erro')
+        return result
+         
 
         
 
