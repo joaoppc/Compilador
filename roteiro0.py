@@ -54,7 +54,58 @@ class PrePro():
             p+=1
         code = code[:comment_start]+code[comment_end:]
         return code
+
+class Node():
+    def __init__(self, varient, list_nodes):
+        self.varient = varient
+        self.list_nodes = list_nodes
+    def evaluate(self):
+        return self.varient
+
+class BinOp(Node):
+    def __init__(self, varient, list_nodes):
+        self.varient = varient
+        self.list_nodes = list_nodes
+    def evaluate(self):
+        n1 = self.list_nodes[0]
+        n2 = self.list_nodes[1]
+
+        if self.varient == '+':
+            return n1 + n2
+        if self.varient == '-':
+            return n1 - n2
+        if self.varient == '*':
+            return n1 * n2
+        if self.varient == '/':
+            return n1 / n2
         
+        
+class UnOp(Node):
+    def __init__(self, varient, list_nodes):
+        self.varient = varient
+        self.list_nodes = list_nodes
+    def evaluate(self):
+        n1 = self.list_nodes[0]
+
+        if self.varient == '+':
+            return n1
+        if self.varient == '-':
+            return -n1    
+
+class IntVal(Node):
+    def __init__(self, varient):
+        self.varient = varient
+    def evaluate(self):
+        return self.varient
+
+class NoOp(Node):
+    def __init__(self):
+        self.varient = None
+        self.list_nodes = []
+    def evaluate(self):
+        return None
+
+
 class Parser:
     tokens = None
     @staticmethod
@@ -67,16 +118,16 @@ class Parser:
     def factor():
         result = ''
         if Parser.tokens.actual.type == 'INT':
-            result = Parser.tokens.actual.value
+            result = IntVal(Parser.tokens.actual.value).evaluate()
             Parser.tokens.selectNext()
             return result
         if Parser.tokens.actual.type == 'PLUS':
             Parser.tokens.selectNext()
-            result = Parser.factor()
+            result = UnOp('+',[Parser.factor()]).evaluate()
             return result
         if Parser.tokens.actual.type == 'MINUS':
             Parser.tokens.selectNext()
-            result = -Parser.factor()
+            result = UnOp('-', [Parser.factor()]).evaluate()
             return result
         if Parser.tokens.actual.type == 'OPEN':
             Parser.tokens.selectNext()
@@ -93,7 +144,7 @@ class Parser:
             if Parser.tokens.actual.type == "MULT":
                 Parser.tokens.selectNext()
                 if Parser.tokens.actual.type == 'INT':
-                    result *= Parser.factor()
+                    result = BinOp('*',[result,Parser.factor()]).evaluate()
                     Parser.tokens.selectNext()
                 else:
                     print('erro')
@@ -101,7 +152,7 @@ class Parser:
             elif Parser.tokens.actual.type == "DIV":
                 Parser.tokens.selectNext()
                 if Parser.tokens.actual.type == 'INT':
-                    result /= Parser.factor()
+                    result = BinOp('/',[result,Parser.factor()]).evaluate()
                     Parser.tokens.selectNext()
                 else:
                     print('erro')
@@ -117,7 +168,7 @@ class Parser:
             if Parser.tokens.actual.type == "PLUS":
                 Parser.tokens.selectNext()
                 if Parser.tokens.actual.type == 'INT':
-                        result += Parser.term()
+                        result = BinOp("+",[result,Parser.term()]).evaluate()
                         Parser.tokens.selectNext()
                 else:
                     print('erro')
@@ -125,7 +176,7 @@ class Parser:
             elif Parser.tokens.actual.type == "MINUS":
                 Parser.tokens.selectNext()
                 if Parser.tokens.actual.type == 'INT':
-                        result -= Parser.term()
+                        result = BinOp("-",[result,Parser.term()]).evaluate()
                         Parser.tokens.selectNext()
                 else:
                     print('erro')
