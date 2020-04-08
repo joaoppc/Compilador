@@ -32,6 +32,21 @@ class Tokenizer:
             elif self.origin[self.position] == ')':
                 self.actual = Token('CLOSE',')')
                 self.position += 1
+            elif self.origin[self.position] == '=':
+                self.actual = Token('EQUAL','=')
+                self.position += 1
+            elif self.origin[self.position] == 'string':
+                self.actual = Token('IDEN','string')
+                self.position += 1
+            elif self.origin[self.position] == '{':
+                self.actual = Token('OB','{')
+                self.position += 1
+            elif self.origin[self.position] == '}':
+                self.actual = Token('CB','}')
+                self.position += 1
+            elif self.origin[self.position] == 'string':
+                self.actual = Token('ECHO','string')
+                self.position += 1
             elif self.origin[self.position].isdigit():
                 num = ""
                 while (self.position < len(self.origin)) and (self.origin[self.position].isdigit()):
@@ -77,7 +92,7 @@ class BinOp(Node):
         if self.varient == '*':
             return n1 * n2
         if self.varient == '/':
-            return n1 / n2
+            return int(n1 / n2)
         
         
 class UnOp(Node):
@@ -105,6 +120,52 @@ class NoOp(Node):
     def evaluate(self):
         return None
 
+class Identifier(Node):
+    def __init__(self, varient):
+        self.varient = varient
+    def evaluate(self,table):
+        return table.getter(self.table)
+
+class Print(Node):
+    def __init__(self, list_nodes):
+        self.list_nodes = list_nodes
+    def evaluate(self,table):
+        x = self.list_nodes[0].evaluate(table)
+        if type(x) is tuple:
+            x = x[0]
+        print(x)
+
+class Commands(Node):
+    def __init__(self,list_nodes):
+        self.list_nodes = list_nodes
+    def evaluate(self):
+        for i in self.list_nodes:
+            i.evaluate()
+
+class Assignment(Node):
+    def __init__(self, varient, list_nodes):
+        self.varient = varient
+        self.list_nodes = list_nodes
+    def evaluate(self,table):
+        table.setter(self.list_nodes[0].varient,self.list_nodes[1].evaluate(table))
+        
+
+
+
+class SymbolTable():
+    def __init__(self):
+        self.table ={}
+
+    def getter(self,key):
+        if key in self.table:
+            return tuple(self.table[key])
+
+    def setter(self,key,varient):
+        if key in self.table:
+            if type(varient) is tuple:
+                varient = varient[0]
+            self.table[key][0] = varient
+
 
 class Parser:
     tokens = None
@@ -113,6 +174,28 @@ class Parser:
         code = PrePro.filter(code)
         Parser.tokens = Tokenizer(code)
         print(Parser.parseExpression())
+
+    @staticmethod
+    def block():
+        node_list=[]
+        node_list.append(Parser.command())
+        while Parser.tokens.actual.type == 'OB':
+            Parser.tokens.selectNext()
+            return Commands('block',node_list)
+    
+    @staticmethod
+    def command():
+        if Parser.tokens.actual.type == 'IDEN':
+            str = Parser.tokens.actual.value
+            Parser.tokens.selectNext()
+            if Parser.tokens.actual.type == 'EQUAL':
+                Parser.tokens.selectNext()
+                return Assignment('=',[Identifier(str),Parser.parseExpression])
+        if Parser.tokens.actual.type == 'ECHO':
+            Parser.tokens.selectNext()
+            return Print([Parser.parseExpression])
+        if Parser.tokens.actual.type == 'ECHO':
+        
 
     @staticmethod
     def factor():
