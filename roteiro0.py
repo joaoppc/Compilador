@@ -194,7 +194,6 @@ class Parser:
         if Parser.tokens.actual.type == 'ECHO':
             Parser.tokens.selectNext()
             return Print([Parser.parseExpression])
-        if Parser.tokens.actual.type == 'ECHO':
         
 
     @staticmethod
