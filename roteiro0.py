@@ -34,6 +34,9 @@ class Tokenizer:
             elif self.origin[self.position] == ')':
                 self.actual = Token('CLOSE',')')
                 self.position += 1
+            elif self.origin[self.position] == '\n':
+                self.actual = Token('NEWL','\n')
+                self.position += 1
             elif self.origin[self.position] == '=':
                 self.position += 1
                 if self.origin[self.position] == '=':
@@ -103,15 +106,15 @@ class Tokenizer:
 class PrePro():
     @staticmethod
     def filter(code):
+        code = code.replace('\n','')
         p = 0
         comment_start = 0
         comment_end = 0
         while p<len(code)-1:
             if code[p] == '/' and code[p+1] == '*':
                 comment_start = p
-                p
             if code[p] == '*' and code[p+1] == '/':
-                comment_end == p+1
+                comment_end = p+2
             p+=1
         code = code[:comment_start]+code[comment_end:]
         return code
@@ -140,15 +143,15 @@ class BinOp(Node):
         if self.varient == '/':
             return int(n1 / n2)
         if self.varient == '<':
-            return int(n1 < n2)
+            return n1 < n2
         if self.varient == '>':
-            return int(n1 > n2)
+            return n1 > n2
         if self.varient == '==':
-            return int(n1 == n2)
+            return n1 == n2
         if self.varient == 'or':
-            return int(n1 or n2)
+            return n1 or n2
         if self.varient == 'and':
-            return int(n1 and n2)
+            return n1 and n2
         
         
 class UnOp(Node):
@@ -243,7 +246,7 @@ class SymbolTable():
     def getter(self,key):
         if key in self.table:
             return  self.table[key]
-        #raise Exception("variável não declarada")
+        
 
     def setter(self,key,varient):
         if key in self.table:
@@ -263,7 +266,10 @@ class Parser:
         Parser.tokens = Tokenizer(code)
         Parser.table = SymbolTable()
         Parser.block()
-       
+
+    #@staticmethod
+    #def Program():
+    #    if    
 
     @staticmethod
     def block():
@@ -317,7 +323,9 @@ class Parser:
                 if Parser.tokens.actual.type != "CLOSE":
                     raise Exception("sintax Error")
                 Parser.tokens.selectNext()
-                cond.append(Parser.command())
+                ####{
+                cond.append(Parser.command())   #####loops não conseguindo executar varios comandos no ou não identificando as chaves
+                ####}
                 return While(cond)
 
             else:
@@ -352,15 +360,15 @@ class Parser:
             return result
         if Parser.tokens.actual.type == 'PLUS':
             Parser.tokens.selectNext()
-            result = UnOp('+',[Parser.factor()])#.evaluate()
+            result = UnOp('+',[Parser.factor()])
             return result
         if Parser.tokens.actual.type == 'MINUS':
             Parser.tokens.selectNext()
-            result = UnOp('-', [Parser.factor()])#.evaluate()
+            result = UnOp('-', [Parser.factor()])
             return result
         if Parser.tokens.actual.type == 'NOT':
             Parser.tokens.selectNext()
-            result = UnOp('!', [Parser.factor()])#.evaluate()
+            result = UnOp('!', [Parser.factor()])
             return result
         if Parser.tokens.actual.type == "OPEN":
             Parser.tokens.selectNext()
@@ -378,7 +386,7 @@ class Parser:
             if  Parser.tokens.actual.type == 'OPEN':
                 Parser.tokens.selectNext()
                 if Parser.tokens.actual.type == 'CLOSE':
-                    result = ReadLine(Parser.tokens.actual.value)
+                    result = ReadLine(Parser.tokens.actual.value)  ##################readline não esta funcionando
                 else:
                     raise Exception("Sintax Error")
             else:
@@ -390,7 +398,7 @@ class Parser:
     @staticmethod
     def term():
         result = Parser.factor()    
-        while Parser.tokens.actual.type in ['MULT','DIV']:
+        while Parser.tokens.actual.type in ['MULT','DIV','AND']:
 
             if Parser.tokens.actual.type == "MULT":
                 Parser.tokens.selectNext()
@@ -415,13 +423,10 @@ class Parser:
     @staticmethod
     def parseExpression():
         result = Parser.term()
-        while Parser.tokens.actual.type in ['PLUS','MINUS']:
+        while Parser.tokens.actual.type in ['PLUS','MINUS','OR']:
             if Parser.tokens.actual.type == "PLUS":
                 Parser.tokens.selectNext()
                 result = BinOp("+",[result,Parser.term()])
-            
-            
-                    
             elif Parser.tokens.actual.type == "MINUS":
                 Parser.tokens.selectNext()
                 result = BinOp("-",[result,Parser.term()])
@@ -435,13 +440,13 @@ class Parser:
     @staticmethod
     def RelExpression():
         result = Parser.parseExpression()
-        if Parser.tokens.actual.value == "==":
+        if Parser.tokens.actual.type == "EQUALITY":
             Parser.tokens.selectNext()
-            return BinOp("=",[result,Parser.parseExpression()])
-        if Parser.tokens.actual.value == ">":
+            return BinOp("==",[result,Parser.parseExpression()])
+        if Parser.tokens.actual.type == "BIGGER":
             Parser.tokens.selectNext()
             return BinOp(">",[result,Parser.parseExpression()])
-        if Parser.tokens.actual.value == "<":
+        if Parser.tokens.actual.type == "SMALLER":
             Parser.tokens.selectNext()
             return BinOp("<",[result,Parser.parseExpression()])
         return result
@@ -451,6 +456,9 @@ class Parser:
 
 if __name__ == '__main__':
     code = sys.argv[1]
+    with open(code, "r") as in_file:
+            code = in_file.read()
+    
 
     Parser.run(code)
  
