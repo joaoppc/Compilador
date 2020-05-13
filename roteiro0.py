@@ -234,7 +234,7 @@ class Print(Node):
         x = self.list_nodes[0]
         if type(x) is tuple:
             x = x[0]
-        print(x.evaluate(stab))
+        print(x.evaluate(stab)[0])
 
 class Commands(Node):
     def __init__(self,list_nodes):
