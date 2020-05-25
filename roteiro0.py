@@ -270,7 +270,7 @@ class If(Node):
                 k.evaluate(stab) 
         elif len(self.list_nodes) > 2:
              for k in self.list_nodes[2]:
-                k.evaluate(stab)
+           
 
 class ReadLine(Node):
     def __init__(self,varient):
