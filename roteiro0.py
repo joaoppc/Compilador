@@ -120,7 +120,37 @@ class Tokenizer:
                     var += self.origin[self.position]
                     self.position += 1
                     self.actual = Token('IDEN',var)
-                    
+
+
+class Assembly():
+    assembly = ""
+    id_node=0
+    @staticmethod
+    def write_assembly(ass_code):
+        Assembly.assembly += ass_code
+    
+
+    @staticmethod
+    def flush_code(nasm):
+
+        fr =  open(nasm, "r")
+        nasm_template = fr.read()
+        fr.close()
+        template_split=nasm_template.split("\n")
+        above = template_split[:-5]
+        above = "\n".join(above)
+        bellow = template_split[-5:]
+        bellow = "\n".join(bellow)
+
+        
+        with open("assembly.asm","w+") as write_file:
+                
+            write_file.write(above)
+            write_file.write(Assembly.assembly)
+            write_file.write(bellow)
+
+
+
                     
 
 class PrePro():
@@ -151,7 +181,9 @@ class BinOp(Node):
         self.varient = varient
         self.list_nodes = list_nodes
     def evaluate(self,stab):
+        Assembly.id_node+=1
         n1 = self.list_nodes[0].evaluate(stab)
+        Assembly.write_assembly("  PUSH EBX ; O BinOp guarda o valor na pilha \n")
         n2 = self.list_nodes[1].evaluate(stab)
 
         if n1[1] == 'string' and (n2[1] == 'bool' or n2[1] == 'int') and self.varient != '.':
@@ -161,18 +193,42 @@ class BinOp(Node):
 
 
         if self.varient == '+':
+            Assembly.write_assembly("  POP EAX ; recupera o valor da pilha EAX \n")
+            Assembly.write_assembly("  ADD EAX, EBX ; executa a operação \n")
+            Assembly.write_assembly("  MOV EBX, EAX ; retorna o valor em EBX \n\n")
             return ((n1[0] + n2[0]),'int')
         if self.varient == '-':
+            Assembly.write_assembly("  POP EAX ; recupera o valor da pilha EAX \n")
+            Assembly.write_assembly("  SUB EAX, EBX ; executa a operação \n")
+            Assembly.write_assembly("  MOV EBX, EAX ; retorna o valor em EBX \n\n")
             return ((n1[0] - n2[0]),'int')
         if self.varient == '*':
+            Assembly.write_assembly("  POP EAX ; recupera o valor da pilha EAX \n")
+            Assembly.write_assembly("  IMUL EAX, EBX ; executa a operação \n")
+            Assembly.write_assembly("  MOV EBX, EAX ; retorna o valor em EBX \n\n")
             return ((n1[0] * n2[0]),'int')
         if self.varient == '/':
+            Assembly.write_assembly("  POP EAX ; recupera o valor da pilha EAX \n")
+            Assembly.write_assembly("  DIV EAX, EBX ; executa a operação \n")
+            Assembly.write_assembly("  MOV EBX, EAX ; retorna o valor em EBX \n\n")
             return ((int(n1[0] / n2[0])),'int')
         if self.varient == '<':
+            Assembly.write_assembly("  POP EAX ; recupera o valor da pilha EAX \n")
+            Assembly.write_assembly("  CMP EAX, EBX; comparaos valores \n")
+            Assembly.write_assembly("  CALL binop_jl ; executa a operação \n")
+            #Assembly.write_assembly("MOV EBX, EAX ; retorna o valor em EBX \n\n")
             return ((n1[0] < n2[0]),'bool')
         if self.varient == '>':
+            Assembly.write_assembly("  POP EAX ; recupera o valor da pilha EAX \n")
+            Assembly.write_assembly("  CMP EAX, EBX; comparaos valores \n")
+            Assembly.write_assembly("  CALL binop_jg ; executa a operação \n")
+            #Assembly.write_assembly("MOV EBX, EAX ; retorna o valor em EBX \n\n")
             return ((n1[0] > n2[0]),'bool')
         if self.varient == '==':
+            Assembly.write_assembly("  POP EAX ; recupera o valor da pilha EAX \n")
+            Assembly.write_assembly("  CMP EAX, EBX; comparaos valores \n")
+            Assembly.write_assembly("  CALL binop_je ; executa a operação \n")
+            #Assembly.write_assembly("MOV EBX, EAX ; retorna o valor em EBX \n\n")
             return ((n1[0] == n2[0]),'bool')
         if self.varient == 'or':
             return ((n1[0] or n2[0]),'bool')
@@ -186,6 +242,7 @@ class UnOp(Node):
         self.varient = varient
         self.list_nodes = list_nodes
     def evaluate(self,stab):
+        Assembly.id_node+=1
         n1 = self.list_nodes[0].evaluate(stab)
         
         
@@ -201,17 +258,21 @@ class IntVal(Node):
     def __init__(self, varient):
         self.varient = varient
     def evaluate(self,stab):
+        Assembly.id_node+=1
+        Assembly.write_assembly("  MOV EBX, "+str(self.varient)+" ; Evaluate do IntVal \n")
         return ((self.varient),'int')
 
 class BoolVal(Node):
     def __init__(self, varient):
         self.varient = varient
     def evaluate(self,stab):
+        Assembly.id_node+=1
         return ((self.varient),'bool')
 class StringVal(Node):
     def __init__(self, varient):
         self.varient = varient
     def evaluate(self,stab):
+        Assembly.id_node+=1
         return ((self.varient),'string')
 
 class NoOp(Node):
@@ -219,12 +280,15 @@ class NoOp(Node):
         self.varient = None
         self.list_nodes = []
     def evaluate(self):
+        Assembly.id_node+=1
         return None
 
 class Identifier(Node):
     def __init__(self, varient):
         self.varient = varient
     def evaluate(self,stab):
+        Assembly.id_node+=1
+        Assembly.write_assembly("  MOV EBX, [EBP-"+str(stab.table[self.varient][1])+"] ; evaluate do identifier à esquerda do binop \n\n")
         return SymbolTable.getter(stab,self.varient)
 
 class Print(Node):
@@ -235,14 +299,20 @@ class Print(Node):
         if type(x) is tuple:
             x = x[0]
         print(x.evaluate(stab)[0])
+        Assembly.id_node+=1
+        Assembly.write_assembly("  PUSH EBX ; empilha os argumentos \n")
+        Assembly.write_assembly("  CALL print ; chamada da função \n")
+        Assembly.write_assembly("  POP EBX ; desempilha argumento \n\n")
 
 class Commands(Node):
     def __init__(self,list_nodes):
         self.list_nodes = list_nodes
     def evaluate(self,stab):
+        Assembly.id_node+=1
         for i in self.list_nodes:
             if i != None:
                 i.evaluate(stab)
+                
 
 
 class Assignment(Node):
@@ -250,32 +320,62 @@ class Assignment(Node):
         self.list_nodes = list_nodes
         self.varient = varient
     def evaluate(self,stab):
+        Assembly.id_node+=1
+        if self.list_nodes[0].varient not in stab.table:
+            Assembly.write_assembly("  PUSH DWORD 0 ; alocação na primeira atribuição\n")
         SymbolTable.setter(stab ,self.list_nodes[0].varient,self.list_nodes[1].evaluate(stab))
+        
 
 class While(Node):
     def __init__(self,list_nodes):
         self.list_nodes = list_nodes
     def evaluate(self,stab):
-        while self.list_nodes[0].evaluate(stab):
-            for j in self.list_nodes[1]:
-                j.evaluate(stab)
+        Assembly.id_node+=1
+        id_node=Assembly.id_node
+        Assembly.write_assembly("LOOP_"+str(id_node)+": ; unique identifier do while\n")
+        node_left = self.list_nodes[0].evaluate(stab)
+        Assembly.write_assembly("  CMP EBX, False ; verifica se o teste deu falso\n")
+        Assembly.write_assembly("  JE EXIT_"+str(id_node)+" ; se falso sai do while\n")
+        for j in self.list_nodes[1]:
+            j.evaluate(stab)
+        #while self.list_nodes[0].evaluate(stab):
+        #    for j in self.list_nodes[1]:
+        #        j.evaluate(stab)
+        Assembly.write_assembly("  JMP LOOP_"+str(id_node)+" ; testa novamente\n")
+        Assembly.write_assembly("EXIT_"+str(id_node)+": ; saida\n\n")
+    
+
 
 
 class If(Node):
     def __init__(self,list_nodes):
         self.list_nodes = list_nodes
     def evaluate(self,stab):
-        if self.list_nodes[0].evaluate(stab):
-            for k in self.list_nodes[1]:
+        Assembly.id_node+=1
+        id_node=Assembly.id_node
+        Assembly.write_assembly("LOOP_"+str(id_node)+": ; unique identifier do if\n")
+        node_left = self.list_nodes[0].evaluate(stab)
+        Assembly.write_assembly("  CMP EBX, False ; verifica se o teste deu falso\n")
+        Assembly.write_assembly("  JE ELSE_"+str(id_node)+" ; se falso vai para else\n")
+        for k in self.list_nodes[1]:
                 k.evaluate(stab) 
-        elif len(self.list_nodes) > 2:
-             for k in self.list_nodes[2]:
+        #if self.list_nodes[0].evaluate(stab):
+        #    for k in self.list_nodes[1]:
+        #        k.evaluate(stab) 
+        #elif len(self.list_nodes) > 2:
+        #     for k in self.list_nodes[2]:
+        #        k.evaluate(stab)
+        Assembly.write_assembly("ELSE_"+str(id_node)+": ; unique identifier do if\n")
+        if len(self.list_nodes) > 2:
+            for k in self.list_nodes[2]:
                 k.evaluate(stab)
+        Assembly.write_assembly("EXIT_"+str(id_node)+": ; saida\n\n")
 
 class ReadLine(Node):
     def __init__(self,varient):
         self.varient = varient
     def evaluate(self):
+        Assembly.id_node+=1
         return ((int(input())),'int')
 
 
@@ -286,11 +386,19 @@ class SymbolTable():
 
     def getter(self,key):
         if key in self.table:
-            return  self.table[key]
+            
+            return  self.table[key][0]
+        
         
 
     def setter(self,key,varient):
-        self.table[key] = varient
+        if key in self.table:
+            deslocamento = self.table[key][1]
+        else:
+            deslocamento = (len(self.table.keys())+1)*4
+        Assembly.write_assembly("  MOV [EBP-"+str(deslocamento)+"], EBX ; resultado da atribuição \n\n")
+        
+        self.table[key] = (varient,deslocamento)
         Parser.table = self.table
     
         
@@ -517,9 +625,11 @@ class Parser:
 
 if __name__ == '__main__':
     code = sys.argv[1]
+    nasm = sys.argv[2]
     with open(code, "r") as in_file:
             code = in_file.read()
     
 
     Parser.run(code)
+    Assembly.flush_code(nasm)
  
