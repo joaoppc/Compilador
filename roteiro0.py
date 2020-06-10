@@ -55,6 +55,9 @@ class Tokenizer:
             elif self.origin[self.position] == ';':
                 self.actual = Token('SC',';')
                 self.position += 1
+            elif self.origin[self.position] == ',':
+                self.actual = Token('COMMA',',')
+                self.position += 1
             elif self.origin[self.position] == '.':
                 self.actual = Token('CONCAT','.')
                 self.position += 1
@@ -113,6 +116,15 @@ class Tokenizer:
                     self.actual = Token('OR',string)
                 elif string == "readline":
                     self.actual = Token('READLINE',string)
+                elif string == "function":
+                    func = ''
+                    self.position += 1
+                    while self.origin[self.position].isalpha() and self.position < len(self.origin):
+                        func += self.origin[self.position]
+                        self.position += 1
+                        self.actual = Token('FUNC',func)
+                elif string == "return":
+                    self.actual = Token("RETURN",string)
             elif self.origin[self.position] == '$':
                 var = "$"
                 self.position += 1
@@ -278,7 +290,33 @@ class ReadLine(Node):
     def evaluate(self):
         return ((int(input())),'int')
 
+class FuncDec(Node):
+    def __init__( self,varient,list_nodes):
+        self.varient = varient
+        self.list_nodes = list_nodes
 
+    def evaluate(self, stab):
+        SymbolTable.setter_func(self.varient,self.list_nodes)
+
+class FuncCall(Node):
+    temp_st={}
+    def __init__(self, varient, list_nodes):
+        self.varient = varient
+        self.list_nodes = list_nodes
+    def evaluate(self):
+        func = SymbolTable.getter_func(self.varient,self.list_nodes)### chamar a função com os parâmetros de acordo com 
+        if len(func) != len(self.list_nodes)+1:
+            raise Exception("argumentos não coincidem")
+        else:
+            for i in range(len(self.list_nodes)):
+                temp_st[func[i]]=self.list_nodes[i]
+            func[len(self.list_nodes)].evaluate(temp_st)
+
+class Return(Node):
+    def __init__(self,list_nodes):
+        self.list_nodes = list_nodes
+    def evaluate(self,stab):
+        return FuncCall.evaluate()
 
 class SymbolTable():
     def __init__(self):
@@ -292,19 +330,30 @@ class SymbolTable():
     def setter(self,key,varient):
         self.table[key] = varient
         Parser.table = self.table
-    
-        
+
+    @staticmethod
+    def getter_func(key):
+        if key in Parser.func_table:
+            return  Parser.func_table[key]
+
+    @staticmethod
+    def setter_func(key,varient):
+        Parser.func_table[key] = varient
+
+
 
 
 class Parser:
     tokens = None
     table = None
+    func_table = None
     list_childs = []
     @staticmethod
     def run(code):
         code = PrePro.filter(code)
         Parser.tokens = Tokenizer(code)
         Parser.table = SymbolTable()
+        Parser.func_table = SymbolTable()
         
         Parser.Program()
        
@@ -391,6 +440,35 @@ class Parser:
                     else:
                         return If(cond)
 
+        elif Parser.tokens.actual.type == 'FUNC':
+            func_name = Parser.tokens.actual.value
+            Parser.tokens.selectNext()
+            if Parser.tokens.actual.type == 'OPEN':
+                Parser.tokens.selectNext()
+                func = [Parser.tokens.actual.value]
+                Parser.tokens.selectNext()
+                while(Parser.tokens.actual.type == 'COMMA'):
+                    Parser.tokens.selectNext()
+                    func.append(Parser.tokens.actual.value)  
+                    Parser.tokens.selectNext()
+                if Parser.tokens.actual.type != "CLOSE":  
+                    raise Exception("sintax Error")
+                Parser.tokens.selectNext()
+                func.append(Parser.command())   
+                return FuncDec(func_name,func)
+                
+
+            else:
+                raise Exception("sintax error")
+
+        elif Parser.tokens.actual.type == 'RETURN':
+            Parser.tokens.selectNext()
+            ret = Return([Parser.RelExpression()])
+            if Parser.tokens.actual.type == 'SC':
+                Parser.tokens.selectNext()
+                return ret
+            else:
+                raise Exception("Sintax Error")
              
         else:
             return Parser.block()
@@ -451,6 +529,9 @@ class Parser:
                 raise Exception("Sintax Error")
             Parser.tokens.selectNext()
             return result
+        if Parser.tokens.actual.type == 'RETURN':
+           Parser.tokens.selectNext()                       #####Checar se retorna o valor da função
+           return Return(Identifier(Parser.tokens.actual.value))    ### talvez identifier, talvez getter da variável na symbol func symbol table
          
 
     @staticmethod
