@@ -9,7 +9,7 @@ class Tokenizer:
         self.origin = origin
         self.position = 0
         self.actual = None
-        self.reserved = ["echo","if","else","while","end","readline","or","and"]
+        self.reserved = ["echo","if","else","while","end","readline","or","and","function","return"]
         self.selectNext()
     def selectNext(self):
         while (self.position < len(self.origin)) and (self.origin[self.position] == " "):
@@ -117,14 +117,11 @@ class Tokenizer:
                 elif string == "readline":
                     self.actual = Token('READLINE',string)
                 elif string == "function":
-                    func = ''
-                    self.position += 1
-                    while self.origin[self.position].isalpha() and self.position < len(self.origin):
-                        func += self.origin[self.position]
-                        self.position += 1
-                        self.actual = Token('FUNC',func)
+                    self.actual = Token('FUNC',string)
                 elif string == "return":
                     self.actual = Token("RETURN",string)
+                else:
+                    self.actual = Token('NAME',string)
             elif self.origin[self.position] == '$':
                 var = "$"
                 self.position += 1
@@ -296,21 +293,21 @@ class FuncDec(Node):
         self.list_nodes = list_nodes
 
     def evaluate(self, stab):
-        SymbolTable.setter_func(self.varient,self.list_nodes)
+        SymbolTable.setter_func(self)
 
 class FuncCall(Node):
     temp_st={}
     def __init__(self, varient, list_nodes):
         self.varient = varient
         self.list_nodes = list_nodes
-    def evaluate(self):
-        func = SymbolTable.getter_func(self.varient,self.list_nodes)### chamar a função com os parâmetros de acordo com 
-        if len(func) != len(self.list_nodes)+1:
+    def evaluate(self,stab):
+        func = SymbolTable.getter_func(self.varient)### chamar a função com os parâmetros de acordo com 
+        if len(func.list_nodes) != len(self.list_nodes)+1:
             raise Exception("argumentos não coincidem")
         else:
             for i in range(len(self.list_nodes)):
-                temp_st[func[i]]=self.list_nodes[i]
-            func[len(self.list_nodes)].evaluate(temp_st)
+                self.temp_st[func.list_nodes[i]]=self.list_nodes[i]
+            return func[len(self.list_nodes)].evaluate(temp_st)
 
 class Return(Node):
     def __init__(self,list_nodes):
@@ -319,6 +316,7 @@ class Return(Node):
         return FuncCall.evaluate()
 
 class SymbolTable():
+    func_tb = {}
     def __init__(self):
         self.table = {}
 
@@ -333,12 +331,15 @@ class SymbolTable():
 
     @staticmethod
     def getter_func(key):
-        if key in Parser.func_table:
-            return  Parser.func_table[key]
+        if key in SymbolTable.func_tb:
+            return  SymbolTable.func_tb[key]
 
     @staticmethod
-    def setter_func(key,varient):
-        Parser.func_table[key] = varient
+    def setter_func(func):
+        SymbolTable.func_tb[func.varient.varient] = func
+        
+
+
 
 
 
@@ -413,7 +414,7 @@ class Parser:
         elif Parser.tokens.actual.type == 'SC':
             Parser.tokens.selectNext()
         elif Parser.tokens.actual.type == 'WHILE':
-            Parser.tokens.selectNext()
+            Parser.tokens.selectNext()                             
             if Parser.tokens.actual.type == 'OPEN':
                 Parser.tokens.selectNext()
                 cond = [Parser.RelExpression()]
@@ -441,25 +442,28 @@ class Parser:
                         return If(cond)
 
         elif Parser.tokens.actual.type == 'FUNC':
-            func_name = Parser.tokens.actual.value
             Parser.tokens.selectNext()
-            if Parser.tokens.actual.type == 'OPEN':
+            if Parser.tokens.actual.type == 'NAME':
+                func_name = Identifier(Parser.tokens.actual.value)
                 Parser.tokens.selectNext()
-                func = [Parser.tokens.actual.value]
-                Parser.tokens.selectNext()
-                while(Parser.tokens.actual.type == 'COMMA'):
+                if Parser.tokens.actual.type == 'OPEN':
                     Parser.tokens.selectNext()
-                    func.append(Parser.tokens.actual.value)  
+                    func = [Parser.tokens.actual.value]                     #### factor funccall com retorno/ command funccall sem retorno e funcdec
                     Parser.tokens.selectNext()
-                if Parser.tokens.actual.type != "CLOSE":  
-                    raise Exception("sintax Error")
-                Parser.tokens.selectNext()
-                func.append(Parser.command())   
-                return FuncDec(func_name,func)
-                
+                    while(Parser.tokens.actual.type == 'COMMA'):
+                        Parser.tokens.selectNext()
+                        func.append(Parser.tokens.actual.value)  
+                        Parser.tokens.selectNext()
+                    if Parser.tokens.actual.type != "CLOSE":  
+                        raise Exception("sintax Error")                     ####No assignment, está vindo o nó funcdec, e ao fazer o evaluate do funcdec no commands ele tem q dar o return e não o funcdec
+                    Parser.tokens.selectNext()
+                    func.append(Parser.command())   
+                    return FuncDec(func_name,func)
+                    
 
-            else:
-                raise Exception("sintax error")
+                else:
+                    raise Exception("sintax error")
+            else: raise Exception("Function name not defined")
 
         elif Parser.tokens.actual.type == 'RETURN':
             Parser.tokens.selectNext()
@@ -469,7 +473,7 @@ class Parser:
                 return ret
             else:
                 raise Exception("Sintax Error")
-             
+
         else:
             return Parser.block()
                    
@@ -529,10 +533,25 @@ class Parser:
                 raise Exception("Sintax Error")
             Parser.tokens.selectNext()
             return result
-        if Parser.tokens.actual.type == 'RETURN':
-           Parser.tokens.selectNext()                       #####Checar se retorna o valor da função
-           return Return(Identifier(Parser.tokens.actual.value))    ### talvez identifier, talvez getter da variável na symbol func symbol table
-         
+        elif Parser.tokens.actual.type == 'NAME':
+            func = Parser.tokens.actual.value
+            Parser.tokens.selectNext()
+            if Parser.tokens.actual.type == 'OPEN':
+                Parser.tokens.selectNext()
+                args = [Parser.tokens.actual.value]
+                Parser.tokens.selectNext()
+                while(Parser.tokens.actual.type == 'COMMA'):
+                    Parser.tokens.selectNext()
+                    args.append(Parser.tokens.actual.value)  
+                    Parser.tokens.selectNext()
+                if Parser.tokens.actual.type != "CLOSE":  
+                    raise Exception("sintax Error")
+                Parser.tokens.selectNext()
+                return FuncCall(func,args)
+                
+
+            else:
+                raise Exception("sintax error")
 
     @staticmethod
     def term():
