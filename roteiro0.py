@@ -296,24 +296,33 @@ class FuncDec(Node):
         SymbolTable.setter_func(self)
 
 class FuncCall(Node):
-    temp_st={}
+    
     def __init__(self, varient, list_nodes):
         self.varient = varient
         self.list_nodes = list_nodes
+        self.temp_st=SymbolTable()
     def evaluate(self,stab):
-        func = SymbolTable.getter_func(self.varient)### chamar a função com os parâmetros de acordo com 
+        func = SymbolTable.getter_func(self.varient)
         if len(func.list_nodes) != len(self.list_nodes)+1:
             raise Exception("argumentos não coincidem")
         else:
             for i in range(len(self.list_nodes)):
-                self.temp_st[func.list_nodes[i]]=self.list_nodes[i]
-            return func[len(self.list_nodes)].evaluate(temp_st)
+                if self.list_nodes[i] in Parser.table:
+                    self.temp_st.table[func.list_nodes[i]]=Identifier(self.list_nodes[i]).evaluate(stab)
+                else:
+                    self.temp_st.table[func.list_nodes[i]]=IntVal(self.list_nodes[i]).evaluate(stab)
+            ass = func.list_nodes[len(self.list_nodes)][0].evaluate(self.temp_st)
+            self.temp_st.table[ass] = func.list_nodes[len(self.list_nodes)][1].evaluate(self.temp_st)
+            return func.list_nodes[len(self.list_nodes)][1].evaluate(self.temp_st)
 
 class Return(Node):
     def __init__(self,list_nodes):
         self.list_nodes = list_nodes
     def evaluate(self,stab):
-        return FuncCall.evaluate()
+        if self.list_nodes[0].varient in stab.table:
+            return stab.table[self.list_nodes[0].varient]
+        else:
+            raise Exception("variável não é parametro")
 
 class SymbolTable():
     func_tb = {}
@@ -333,6 +342,8 @@ class SymbolTable():
     def getter_func(key):
         if key in SymbolTable.func_tb:
             return  SymbolTable.func_tb[key]
+        else:
+            raise Exception("função não declarada")
 
     @staticmethod
     def setter_func(func):
@@ -448,14 +459,14 @@ class Parser:
                 Parser.tokens.selectNext()
                 if Parser.tokens.actual.type == 'OPEN':
                     Parser.tokens.selectNext()
-                    func = [Parser.tokens.actual.value]                     #### factor funccall com retorno/ command funccall sem retorno e funcdec
+                    func = [Parser.tokens.actual.value]                     
                     Parser.tokens.selectNext()
                     while(Parser.tokens.actual.type == 'COMMA'):
                         Parser.tokens.selectNext()
                         func.append(Parser.tokens.actual.value)  
                         Parser.tokens.selectNext()
                     if Parser.tokens.actual.type != "CLOSE":  
-                        raise Exception("sintax Error")                     ####No assignment, está vindo o nó funcdec, e ao fazer o evaluate do funcdec no commands ele tem q dar o return e não o funcdec
+                        raise Exception("sintax Error")                     #### Function com return funcionando, mas parece que quando a forma da função muda o compilador reclama
                     Parser.tokens.selectNext()
                     func.append(Parser.command())   
                     return FuncDec(func_name,func)
