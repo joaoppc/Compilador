@@ -121,14 +121,21 @@ class Tokenizer:
                 elif string == "return":
                     self.actual = Token("RETURN",string)
                 else:
-                    self.actual = Token('NAME',string)
+                    if (string not in self.reserved):
+
+                        self.actual = Token('NAME',string)
+                    else:
+                        raise Exception("palavra reservada")
             elif self.origin[self.position] == '$':
                 var = "$"
                 self.position += 1
-                while self.origin[self.position].isalpha() and self.position < len(self.origin):
-                    var += self.origin[self.position]
-                    self.position += 1
+                if self.origin[self.position].isalpha() and self.position < len(self.origin):
+                    while (self.origin[self.position].isalpha() or self.origin[self.position]=='_' or self.origin[self.position].isdigit())and self.position < len(self.origin):
+                        var += self.origin[self.position]
+                        self.position += 1
                     self.actual = Token('IDEN',var)
+                else:
+                    raise Exception("definição de variável incorreta")
                     
                     
 
@@ -200,11 +207,11 @@ class UnOp(Node):
         
 
         if self.varient == '+':
-            return n1
+            return (n1[0],'int')
         if self.varient == '-':
-            return -n1    
+            return (-n1[0],'int')   
         if self.varient == '!':
-            return not n1
+            return   (not n1[0],'bool')
 
 class IntVal(Node):
     def __init__(self, varient):
@@ -251,7 +258,9 @@ class Commands(Node):
     def evaluate(self,stab):
         for i in self.list_nodes:
             if i != None:
-                i.evaluate(stab)
+                for p in i:
+                    if p != None:
+                        p.evaluate(stab)
 
 
 class Assignment(Node):
@@ -265,7 +274,8 @@ class While(Node):
     def __init__(self,list_nodes):
         self.list_nodes = list_nodes
     def evaluate(self,stab):
-        while self.list_nodes[0].evaluate(stab):
+            
+        while self.list_nodes[0].evaluate(stab)[0]:
             for j in self.list_nodes[1]:
                 j.evaluate(stab)
 
@@ -274,7 +284,10 @@ class If(Node):
     def __init__(self,list_nodes):
         self.list_nodes = list_nodes
     def evaluate(self,stab):
-        if self.list_nodes[0].evaluate(stab):
+        cond = self.list_nodes[0].evaluate(stab)
+        if type(cond) == tuple:
+            cond = cond[0]
+        if cond:
             for k in self.list_nodes[1]:
                 k.evaluate(stab) 
         elif len(self.list_nodes) > 2:
@@ -285,7 +298,7 @@ class ReadLine(Node):
     def __init__(self,varient):
         self.varient = varient
     def evaluate(self):
-        return ((int(input())),'int')
+        return (int(input()))
 
 class FuncDec(Node):
     def __init__( self,varient,list_nodes):
@@ -303,23 +316,35 @@ class FuncCall(Node):
         self.temp_st=SymbolTable()
     def evaluate(self,stab):
         func = SymbolTable.getter_func(self.varient)
-        if len(func.list_nodes) != len(self.list_nodes)+1:
-            raise Exception("argumentos não coincidem")
-        else:
-            for i in range(len(self.list_nodes)):
-                if self.list_nodes[i] in Parser.table:
-                    self.temp_st.table[func.list_nodes[i]]=Identifier(self.list_nodes[i]).evaluate(stab)
-                else:
-                    self.temp_st.table[func.list_nodes[i]]=IntVal(self.list_nodes[i]).evaluate(stab)
+       
+        for i in range(len(self.list_nodes)):
+            if self.list_nodes[i] in Parser.table:
+                self.temp_st.table[func.list_nodes[i]]=Identifier(self.list_nodes[i]).evaluate(stab)
+            else:
+                self.temp_st.table[func.list_nodes[i]]=IntVal(self.list_nodes[i]).evaluate(stab)
+        if len(func.list_nodes)>1:
             for f in range(len(func.list_nodes[-1])):
                 if f < (len(func.list_nodes[-1])):
-                    func.list_nodes[-1][f].evaluate(self.temp_st)
-            
+                    fn = func.list_nodes[-1][f]
+                    if fn != None:
+                        fn.evaluate(self.temp_st)
             if type(func.list_nodes[-1][-1]) == type(Return([])):
+                if len(func.list_nodes) != len(self.list_nodes)+1:
+                    raise Exception("argumentos não coincidem")
 
                 ret = func.list_nodes[-1][-1].evaluate(self.temp_st)
                 
                 return ret
+        else:
+            func.list_nodes[0].evaluate(self.temp_st)
+        
+        if type(func.list_nodes[-1]) == type(Return([])):
+            if len(func.list_nodes) != len(self.list_nodes)+1:
+                raise Exception("argumentos não coincidem")
+
+            ret = func.list_nodes[-1].evaluate(self.temp_st)
+            
+            return ret
 
             
 
@@ -395,18 +420,25 @@ class Parser:
     @staticmethod
     def block():
         list_block_child=[]
+        obs = 0
         if Parser.tokens.actual.type == "OB":
             Parser.tokens.selectNext()
-            if Parser.tokens.actual.type == "CB":
-                return NoOp().evaluate()
+            obs+=1
+            while Parser.tokens.actual.type == "OB":
+                Parser.tokens.selectNext()
+                obs+=1
             else:
-                while Parser.tokens.actual.type != "CB":
-                    child = Parser.command()
-                    list_block_child.append(child) 
-                     
-                Parser.tokens.selectNext()    
-                return list_block_child                             
-
+                if Parser.tokens.actual.type == "CB":
+                    return NoOp().evaluate()
+                else:
+                    while Parser.tokens.actual.type != "CB":
+                        child = Parser.command()
+                        list_block_child.append(child) 
+                    for i in range(obs):   
+                        Parser.tokens.selectNext()    
+                    return list_block_child                             
+        else:
+            raise Exception("Sintax Error")
     
     @staticmethod
     def command():
@@ -467,17 +499,21 @@ class Parser:
                 Parser.tokens.selectNext()
                 if Parser.tokens.actual.type == 'OPEN':
                     Parser.tokens.selectNext()
-                    func = [Parser.tokens.actual.value]                     
-                    Parser.tokens.selectNext()
-                    while(Parser.tokens.actual.type == 'COMMA'):
+                    if Parser.tokens.actual.type == 'CLOSE':
                         Parser.tokens.selectNext()
-                        func.append(Parser.tokens.actual.value)  
+                        return FuncDec(func_name,Parser.command())
+                    else:
+                        func = [Parser.tokens.actual.value]                     
                         Parser.tokens.selectNext()
-                    if Parser.tokens.actual.type != "CLOSE":  
-                        raise Exception("sintax Error")                     
-                    Parser.tokens.selectNext()
-                    func.append(Parser.command())   
-                    return FuncDec(func_name,func)
+                        while(Parser.tokens.actual.type == 'COMMA'):
+                            Parser.tokens.selectNext()
+                            func.append(Parser.tokens.actual.value)  
+                            Parser.tokens.selectNext()
+                        if Parser.tokens.actual.type != "CLOSE":  
+                            raise Exception("sintax Error")                     
+                        Parser.tokens.selectNext()
+                        func.append(Parser.command())   
+                        return FuncDec(func_name,func)
                     
 
                 else:
@@ -498,16 +534,20 @@ class Parser:
             Parser.tokens.selectNext()
             if Parser.tokens.actual.type == 'OPEN':
                 Parser.tokens.selectNext()
-                args = [Parser.tokens.actual.value]
-                Parser.tokens.selectNext()
-                while(Parser.tokens.actual.type == 'COMMA'):
+                if Parser.tokens.actual.type == 'CLOSE':
                     Parser.tokens.selectNext()
-                    args.append(Parser.tokens.actual.value)  
+                    return FuncCall(func,[])
+                else:
+                    args = [Parser.tokens.actual.value]
                     Parser.tokens.selectNext()
-                if Parser.tokens.actual.type != "CLOSE":  
-                    raise Exception("sintax Error")
-                Parser.tokens.selectNext()
-                return FuncCall(func,args)
+                    while(Parser.tokens.actual.type == 'COMMA'):
+                        Parser.tokens.selectNext()
+                        args.append(Parser.tokens.actual.value)  
+                        Parser.tokens.selectNext()
+                    #if Parser.tokens.actual.type != "CLOSE":  
+                    #    raise Exception("sintax Error")
+                    Parser.tokens.selectNext()
+                    return FuncCall(func,args)
 
         else:
             return Parser.block()
