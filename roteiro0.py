@@ -37,6 +37,9 @@ class Tokenizer:
             elif self.origin[self.position] == '\n':
                 self.actual = Token('NEWL','\n')
                 self.position += 1
+            elif self.origin[self.position] == '\t':
+                self.actual = Token('TAB','\t')
+                self.position += 1
             elif self.origin[self.position] == '=':
                 self.position += 1
                 if self.origin[self.position] == '=':
@@ -157,6 +160,7 @@ class PrePro():
     @staticmethod
     def filter(code):
         code = code.replace('\n','')
+        code = code.replace('\t','')
         p = 0
         comment_start = 0
         comment_end = 0
@@ -311,7 +315,9 @@ class Commands(Node):
         Assembly.id_node+=1
         for i in self.list_nodes:
             if i != None:
-                i.evaluate(stab)
+                for p in i:
+                    if p!= None:
+                        p.evaluate(stab)
                 
 
 
