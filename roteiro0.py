@@ -311,9 +311,17 @@ class FuncCall(Node):
                     self.temp_st.table[func.list_nodes[i]]=Identifier(self.list_nodes[i]).evaluate(stab)
                 else:
                     self.temp_st.table[func.list_nodes[i]]=IntVal(self.list_nodes[i]).evaluate(stab)
-            ass = func.list_nodes[len(self.list_nodes)][0].evaluate(self.temp_st)
-            self.temp_st.table[ass] = func.list_nodes[len(self.list_nodes)][1].evaluate(self.temp_st)
-            return func.list_nodes[len(self.list_nodes)][1].evaluate(self.temp_st)
+            for f in range(len(func.list_nodes[-1])):
+                if f < (len(func.list_nodes[-1])):
+                    func.list_nodes[-1][f].evaluate(self.temp_st)
+            
+            if type(func.list_nodes[-1][-1]) == type(Return([])):
+
+                ret = func.list_nodes[-1][-1].evaluate(self.temp_st)
+                
+                return ret
+
+            
 
 class Return(Node):
     def __init__(self,list_nodes):
@@ -466,7 +474,7 @@ class Parser:
                         func.append(Parser.tokens.actual.value)  
                         Parser.tokens.selectNext()
                     if Parser.tokens.actual.type != "CLOSE":  
-                        raise Exception("sintax Error")                     #### Function com return funcionando, mas parece que quando a forma da função muda o compilador reclama
+                        raise Exception("sintax Error")                     
                     Parser.tokens.selectNext()
                     func.append(Parser.command())   
                     return FuncDec(func_name,func)
@@ -484,6 +492,22 @@ class Parser:
                 return ret
             else:
                 raise Exception("Sintax Error")
+
+        elif Parser.tokens.actual.type == 'NAME':
+            func = Parser.tokens.actual.value
+            Parser.tokens.selectNext()
+            if Parser.tokens.actual.type == 'OPEN':
+                Parser.tokens.selectNext()
+                args = [Parser.tokens.actual.value]
+                Parser.tokens.selectNext()
+                while(Parser.tokens.actual.type == 'COMMA'):
+                    Parser.tokens.selectNext()
+                    args.append(Parser.tokens.actual.value)  
+                    Parser.tokens.selectNext()
+                if Parser.tokens.actual.type != "CLOSE":  
+                    raise Exception("sintax Error")
+                Parser.tokens.selectNext()
+                return FuncCall(func,args)
 
         else:
             return Parser.block()
