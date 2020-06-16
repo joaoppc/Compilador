@@ -318,7 +318,7 @@ class FuncCall(Node):
         func = SymbolTable.getter_func(self.varient)
        
         for i in range(len(self.list_nodes)):
-            if self.list_nodes[i] in Parser.table:
+            if self.list_nodes[i] in Parser.table.table:
                 self.temp_st.table[func.list_nodes[i]]=Identifier(self.list_nodes[i]).evaluate(stab)
             else:
                 self.temp_st.table[func.list_nodes[i]]=IntVal(self.list_nodes[i]).evaluate(stab)
@@ -354,6 +354,10 @@ class Return(Node):
     def evaluate(self,stab):
         if self.list_nodes[0].varient in stab.table:
             return stab.table[self.list_nodes[0].varient]
+        elif type(self.list_nodes[0].varient)== int:
+            return (self.list_nodes[0].varient,int)
+        elif type(self.list_nodes[0].varient)== bool :
+            return (self.list_nodes[0].varient,bool)
         else:
             raise Exception("variável não é parametro")
 
