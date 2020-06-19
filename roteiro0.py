@@ -195,7 +195,7 @@ class BinOp(Node):
         if self.varient == 'and':
             return ((n1[0] and n2[0]),'bool')
         if self.varient == '.':
-            return ((str(n1[0]) + str(int(n2[0]))),'string')
+            return ((str(n1[0]) + str(n2[0])),'string')
         
 class UnOp(Node):
     def __init__(self, varient, list_nodes):
@@ -289,10 +289,10 @@ class If(Node):
             cond = cond[0]
         if cond:
             for k in self.list_nodes[1]:
-                k.evaluate(stab) 
+                return k.evaluate(stab) 
         elif len(self.list_nodes) > 2:
              for k in self.list_nodes[2]:
-                k.evaluate(stab)
+                return k.evaluate(stab)
 
 class ReadLine(Node):
     def __init__(self,varient):
@@ -316,7 +316,6 @@ class FuncCall(Node):
         self.temp_st=SymbolTable()
     def evaluate(self,stab):
         func = SymbolTable.getter_func(self.varient)
-       
         for i in range(len(self.list_nodes)):
             if self.list_nodes[i] in Parser.table.table:
                 self.temp_st.table[func.list_nodes[i]]=Identifier(self.list_nodes[i]).evaluate(stab)
@@ -331,9 +330,12 @@ class FuncCall(Node):
             if type(func.list_nodes[-1][-1]) == type(Return([])):
                 if len(func.list_nodes) != len(self.list_nodes)+1:
                     raise Exception("argumentos não coincidem")
-
-                ret = func.list_nodes[-1][-1].evaluate(self.temp_st)
-                
+                for iy in range(len(func.list_nodes[-1])):
+                    if type(func.list_nodes[-1][iy]) == type(If([])):
+                        ret = func.list_nodes[-1][0].evaluate(self.temp_st)
+                        return ret
+                    else:
+                        ret = func.list_nodes[-1][-1].evaluate(self.temp_st)
                 return ret
         else:
             func.list_nodes[0].evaluate(self.temp_st)
@@ -373,7 +375,7 @@ class SymbolTable():
 
     def setter(self,key,varient):
         self.table[key] = varient
-        Parser.table = self.table
+        Parser.table = self
 
     @staticmethod
     def getter_func(key):
@@ -394,7 +396,7 @@ class SymbolTable():
 
 class Parser:
     tokens = None
-    table = None
+    table = {}
     func_table = None
     list_childs = []
     @staticmethod

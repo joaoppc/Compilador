@@ -1,3 +1,5 @@
 .vscode/launch.json
 entrada.txt
 .vscode/settings.json
+modelo.asm
+assembly.asm
