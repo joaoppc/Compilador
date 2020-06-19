@@ -239,7 +239,7 @@ class BinOp(Node):
         if self.varient == 'and':
             return ((n1[0] and n2[0]),'bool')
         if self.varient == '.':
-            return ((str(n1[0]) + str(int(n2[0]))),'string')
+            return ((str(n1[0]) + str(n2[0])),'string')
         
 class UnOp(Node):
     def __init__(self, varient, list_nodes):
@@ -631,9 +631,11 @@ class Parser:
 
 if __name__ == '__main__':
     code = sys.argv[1]
-    nasm = sys.argv[2]
+    nasm = "modelo.asm"
     with open(code, "r") as in_file:
             code = in_file.read()
+
+
     
 
     Parser.run(code)
