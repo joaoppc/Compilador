@@ -386,7 +386,10 @@ class SymbolTable():
 
     @staticmethod
     def setter_func(func):
-        SymbolTable.func_tb[func.varient.varient] = func
+        if func.varient.varient not in SymbolTable.func_tb:
+            SymbolTable.func_tb[func.varient.varient] = func
+        else:
+            raise Exception("Tentativa de definição de uma função mais de uma vez")
         
 
 
